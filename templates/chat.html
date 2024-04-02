@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('https://images.pexels.com/photos/1111370/pexels-photo-1111370.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .msg-container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            width: 700px;
+            height: 500px;
+        }
+
+        .form-input {
+            margin-bottom: 10px;
+            margin-top: 380px;
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .send-button {
+            width: 15%;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #e91e63;
+            color: white;
+            cursor: pointer;
+        }
+
+        .logout-button {
+            width: 15%;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #e91e63;
+            color: white;
+            cursor: pointer;
+        }
+
+        .message-bar {
+            background-color: #e91e622d;
+            color: rgb(0, 0, 0);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            max-width: 70%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="msg-container">
+        <h3>PERSONA SECRETA</h3>
+        <div id="chat-messages"></div>
+        <form action="" method="post">
+            <div>
+                <input type="text" name="mensaje" placeholder="Escribe algo" class="form-input" required>
+                <button type="submit" class="send-button">ENVIAR</button>
+                <button type="submit" id="logout-button">SALIR</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ############################################################################# -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io.connect('https://localhost:81'); //OJO, REEMPLAZAR POR HTTPS
+        const username = '{{ name }}';
+        const room = 'chat_room';
+        
+        
+        function handleSocket(){
+            socket.emit('join', { username, room });
+        }
+        socket.on('connect',handleSocket);
+        
+        function handleMessages(data){
+            //Se crea un div para que ahí se muestren los mensajes
+            const msgContainer = document.createElement('div');
+            //Esto es lo que se está recibiendo del server
+            msgContainer.textContent = data;
+            //Se agrega el estilo al mensaje 
+            msgContainer.classList.add('message-bar');
+            document.getElementById('chat-messages').appendChild(msgContainer);
+        }
+        socket.on('message', handleMessages)
+        
+    
+        //Se crea el evento "event" que escucha el formulario (submit).
+        const form = document.querySelector('form');
+        function handleForm(event){
+            //Se utiliza preventDefault para que no refresque la página cada que se envía el mensaje.
+            event.preventDefault();
+            //Se accede al mensaje que ha escrito el usuario.
+            const message = event.target.elements.mensaje.value;
+            socket.emit('message', { username, message, room });
+            //Refresca la barra donde se escriben los mensajes
+            event.target.elements.mensaje.value = '';
+        }
+        form.addEventListener('submit', handleForm);
+    
+
+        //Se agrega un evento de escucha para que se muestre la página de "login" cuando el usuario sale del chat
+        const logoutButton = document.getElementById('logout-button');
+        logoutButton.classList.add('logout-button');
+        function handleLogOut(){
+            socket.emit('leave', { username, room });
+            window.location.href = '/login';
+        }
+        logoutButton.addEventListener('click', handleLogOut);
+        
+    </script>
+    <!-- ############################################################################# -->
+
+</body>
+
+</html>
