@@ -2,19 +2,20 @@ from flask import Flask, render_template, request, redirect, url_for
 #SocketIO para la comunicación bidireccional con WebSockets
 from flask_socketio import SocketIO, join_room, leave_room, send
 
-import ssl #NEW
+#import ssl #NEW
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret_key'
 #Instancia del SocketIO
-#socketio = SocketIO(app)
+socketio = SocketIO(app)
+
 
 # Configuración SSL
-certh_path = 'cert.pem'
-key_path = 'key.pem'
-context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER) #NEW
-context.load_cert_chain(certh_path, key_path) #OJO, FALTA CONSEGUIRLOS #NEW
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading', ssl_context=context) #NEW. OJO HAY QUE REEMPLAZAR POR LÍNEA 10
+#certh_path = 'cert.pem' #NEW
+#key_path = 'key.pem' #NEW
+#context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER) #NEW
+#context.load_cert_chain(certh_path, key_path) #OJO, FALTA CONSEGUIRLOS #NEW
+#socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading', ssl_context=context) #NEW. OJO HAY QUE REEMPLAZAR POR LÍNEA 10
 
 #Diccionario para almacenar los usuarios que se van registrando
 users = {}  
@@ -58,5 +59,5 @@ def on_message(data):
     send(f"{username}: {message}", to=room)
 
 if __name__ == '__main__':
-    #socketio.run(app, host='localhost', port=81, debug=True)
-    socketio.run(app, host='localhost', port=81, debug=True, ssl_context=context)
+    socketio.run(app, host='localhost', port=81, debug=True)
+    #socketio.run(app, host='localhost', port=81, debug=True, ssl_context=context) #NEW
