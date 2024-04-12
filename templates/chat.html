@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('https://images.pexels.com/photos/1111370/pexels-photo-1111370.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .msg-container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            width: 700px;
+            height: 500px;
+        }
+
+        .form-input {
+            margin-bottom: 10px;
+            margin-top: 380px;
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .send-button {
+            width: 15%;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #e91e63;
+            color: white;
+            cursor: pointer;
+        }
+
+        .logout-button {
+            width: 15%;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #e91e63;
+            color: white;
+            cursor: pointer;
+        }
+
+        .message-bar {
+            background-color: #e91e622d;
+            color: rgb(0, 0, 0);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            max-width: 70%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="msg-container">
+        <h3>{{name}}</h3>
+        <div id="chat-messages"></div>
+        <form action="" method="post">
+            <div>
+                <input type="text" name="mensaje" placeholder="Escribe algo" class="form-input" required>
+                <button type="submit" class="send-button">ENVIAR</button>
+                <button type="submit" id="logout-button">SALIR</button>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>
