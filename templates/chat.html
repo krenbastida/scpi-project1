@@ -81,11 +81,12 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
-        const socket = io.connect('http://192.168.247.248:81');
+        const socket = io.connect('localhost:81');
         const username = '{{ name }}';
         const room = 'chat_room';
         const encrypted_secret_key = '{{ encrypted_secret_key }}';
         const publica = '{{ public_key }}'
+
 
         function handleSocket() {
             socket.emit('join', { username, room });
