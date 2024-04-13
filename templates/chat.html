@@ -81,7 +81,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
-        const socket = io.connect('http://192.168.247.205:81');
+        const socket = io.connect('http://192.168.247.248:81');
         const username = '{{ name }}';
         const room = 'chat_room';
         const encrypted_secret_key = '{{ encrypted_secret_key }}';
@@ -94,7 +94,7 @@
 
         function handleMessages(data) {
             const msgContainer = document.createElement('div');
-            msgContainer.textContent = publica;
+            msgContainer.textContent = data;
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
         }
