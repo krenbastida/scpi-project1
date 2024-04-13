@@ -68,7 +68,7 @@
 
 <body>
     <div class="msg-container">
-        <h3>PERSONA SECRETA</h3>
+        <h3>{{ name }}</h3>
         <div id="chat-messages"></div>
         <form action="" method="post">
             <div>
@@ -79,57 +79,43 @@
         </form>
     </div>
 
-    <!-- ############################################################################# -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
-        const socket = io.connect('https://localhost:81'); //OJO, REEMPLAZAR POR HTTPS
+        const socket = io.connect('http://localhost:81');
         const username = '{{ name }}';
         const room = 'chat_room';
-        
-        
-        function handleSocket(){
+        const encrypted_secret_key = '{{ encrypted_secret_key }}';
+
+        function handleSocket() {
             socket.emit('join', { username, room });
         }
-        socket.on('connect',handleSocket);
-        
-        function handleMessages(data){
-            //Se crea un div para que ahí se muestren los mensajes
+        socket.on('connect', handleSocket);
+
+        function handleMessages(data) {
             const msgContainer = document.createElement('div');
-            //Esto es lo que se está recibiendo del server
             msgContainer.textContent = data;
-            //Se agrega el estilo al mensaje 
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
         }
         socket.on('message', handleMessages)
-        
-    
-        //Se crea el evento "event" que escucha el formulario (submit).
+
         const form = document.querySelector('form');
-        function handleForm(event){
-            //Se utiliza preventDefault para que no refresque la página cada que se envía el mensaje.
+        function handleForm(event) {
             event.preventDefault();
-            //Se accede al mensaje que ha escrito el usuario.
             const message = event.target.elements.mensaje.value;
             socket.emit('message', { username, message, room });
-            //Refresca la barra donde se escriben los mensajes
             event.target.elements.mensaje.value = '';
         }
         form.addEventListener('submit', handleForm);
-    
 
-        //Se agrega un evento de escucha para que se muestre la página de "login" cuando el usuario sale del chat
         const logoutButton = document.getElementById('logout-button');
         logoutButton.classList.add('logout-button');
-        function handleLogOut(){
+        function handleLogOut() {
             socket.emit('leave', { username, room });
             window.location.href = '/login';
         }
         logoutButton.addEventListener('click', handleLogOut);
-        
     </script>
-    <!-- ############################################################################# -->
-
 </body>
 
 </html>
