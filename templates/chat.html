@@ -68,7 +68,7 @@
 
 <body>
     <div class="msg-container">
-        <h3>{{name}}</h3>
+        <h3>{{ name }}</h3>
         <div id="chat-messages"></div>
         <form action="" method="post">
             <div>
@@ -78,6 +78,45 @@
             </div>
         </form>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io.connect('http://192.168.247.205:81');
+        const username = '{{ name }}';
+        const room = 'chat_room';
+        const encrypted_secret_key = '{{ encrypted_secret_key }}';
+        const publica = '{{ public_key }}'
+
+        function handleSocket() {
+            socket.emit('join', { username, room });
+        }
+        socket.on('connect', handleSocket);
+
+        function handleMessages(data) {
+            const msgContainer = document.createElement('div');
+            msgContainer.textContent = publica;
+            msgContainer.classList.add('message-bar');
+            document.getElementById('chat-messages').appendChild(msgContainer);
+        }
+        socket.on('message', handleMessages)
+
+        const form = document.querySelector('form');
+        function handleForm(event) {
+            event.preventDefault();
+            const message = event.target.elements.mensaje.value;
+            socket.emit('message', { username, message, room });
+            event.target.elements.mensaje.value = '';
+        }
+        form.addEventListener('submit', handleForm);
+
+        const logoutButton = document.getElementById('logout-button');
+        logoutButton.classList.add('logout-button');
+        function handleLogOut() {
+            socket.emit('leave', { username, room });
+            window.location.href = '/login';
+        }
+        logoutButton.addEventListener('click', handleLogOut);
+    </script>
 </body>
 
 </html>
