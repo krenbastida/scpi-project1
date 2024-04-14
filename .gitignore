@@ -1,3 +1,7 @@
 /__pycache__
+/private_Bob.pem
+/private_Alice.pem
+/public_Bob.pem
+/public_Alice.pem
 venv/
 vscode/
