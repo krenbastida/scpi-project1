@@ -86,7 +86,21 @@
         const room = 'chat_room';
         const encrypted_secret_key = '{{ encrypted_secret_key }}';
         const publica = '{{ public_key }}'
+        const secreto = "HolaSoyZuriel"
 
+        //Función para descifrar con AES
+        async function descifraAES(mensaje_cifrado, secreto) {
+            const CryptoJS = require("crypto-js");
+            const decryptedMessage = CryptoJS.AES.decrypt(mensaje_cifrado, secreto).toString(CryptoJS.enc.Utf8);
+            return decryptedMessage
+        }
+
+        //Función para cifrar con AES
+        async function cifraAES(mensaje, secreto) {
+            const CryptoJS = require("crypto-js");
+            const ciphertext = CryptoJS.AES.encrypt(mensaje, secreto).toString();
+            return ciphertext
+        }
 
         function handleSocket() {
             socket.emit('join', { username, room });
@@ -95,7 +109,7 @@
 
         function handleMessages(data) {
             const msgContainer = document.createElement('div');
-            msgContainer.textContent = data;
+            msgContainer.textContent = descifraAES(data,secreto); //data;
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
         }
@@ -104,7 +118,8 @@
         const form = document.querySelector('form');
         function handleForm(event) {
             event.preventDefault();
-            const message = event.target.elements.mensaje.value;
+            const aux = event.target.elements.mensaje.value;
+            const message = cifraAES(aux,secreto)
             socket.emit('message', { username, message, room });
             event.target.elements.mensaje.value = '';
         }

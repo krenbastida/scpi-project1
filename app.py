@@ -18,6 +18,7 @@ socketio = SocketIO(app)
 # Diccionario para almacenar los usuarios que se van registrando
 users = {}
 usuarios = {} #Para no tener conflico con el archivo JSON que se crea automáticamente
+cont = 0
 
 @app.route("/", methods=["GET", "POST"])
 def prime():
@@ -27,24 +28,19 @@ def prime():
 def login():
     if request.method == "POST": #Si POST toma el nombre del usuario y mándalo a la página del chat
         username = request.form['username']
-
         usuarios[username] = {}
         publica = generate_keys_RSA(username) ################################### AQUI!!!!! AQUI MERO SE GENERAN LAS LLAVES PUB Y PRIV (se guardan)
         password = request.form['password']
-        num_usuarios = len(users)
-        print(num_usuarios)
-        if(num_usuarios==2): #Ya que están los dos, se genera el secreto
+        global cont
+        cont = cont + 1
+        if(cont==2): #Ya que están los dos, se genera el secreto
             secreto = generate_key_PBKDF(str(password),urandom(16))  ############AQUI!!!!! AQUI MERO SE GENERA EL SECRETO (LA SIMETRICA)
             cipher = PKCS1_OAEP.new(publica) #################### AQUI!!!! AQUI MERO SE CIFRA LA SIMETRICA CON LA ASIMETRICA
             secreto = cipher.encrypt(str(secreto).encode())
 
             #Con esta declaracion de diccionarios de cada usuario, nos aseguramos que los 2 tienen el secreto para cifrar mensajes, se actualiza
             #el valor del secreto usando el password del último usuario en ingresar.
-            usuarios["Alice"] = {
-                "secreto": secreto,
-                "publica": publica.export_key()
-            }
-            usuarios["Bob"] = {
+            usuarios[username] = {
                 "secreto": secreto,
                 "publica": publica.export_key()
             }
@@ -55,9 +51,6 @@ def login():
                 "secreto": None,
                 "publica": publica.export_key()
             }
-        print(usuarios)
-        print(users)
-
         return redirect(url_for('chat', name=username))
     return render_template('login.html') #Si GET mándale la plantilla login
 
@@ -89,6 +82,14 @@ def on_join(data):
         join_room(room)
         users[username] = room
         send(f"{username} se unió al chat", to=room)
+        if(usuarios[username]["secreto"] != None):
+            print("Soy "+username+" y compartire mi secreto con el otro ahora :)")
+            send({usuarios[username]["secreto"]}, to=username)
+            for clave in usuarios.keys(): #Se recorre el diccionario hasta encontrar a los usuarios que no tienen el secreto :0
+                if(clave!=username):
+                    usuarios[clave]["secreto"] = usuarios[username]["secreto"]
+                    print("Soy "+clave+" y ya tengo el secreto :D")
+                    print(usuarios[clave]["secreto"])
     else:
         send(f"{username} intentó unirse")
 
@@ -114,8 +115,7 @@ def on_message(data):
     username = data['username']
     room = users[username]
     message = data['message']
-    publica = usuarios[username]["publica"]
-    send(f"{username}: {message}  {publica}", to=room)
+    send(f"{username}: {message}", to=room)
 
 def generate_key_PBKDF(password: str, salt: bytes, iterations: int = 100000, key_length: int = 32) -> bytes:
     """Genera una llave a partir de una contraseña usando PBKDF2."""
@@ -185,6 +185,8 @@ def verify_signature(public_key, signature, message_hash):
 ## Para que haga ciertas acciones en presencia de un evento generado por los componentes WEB en chat.html
 
 ## Pensar en qué parte se hace el cifrado y descifrado
+
+##Descargar Node.js, reiniciar y hacer este comando "npm install crypto-js"
 
 '''def encrypt_with_public_key(message: bytes, public_key: bytes) -> bytes:
     public_key = RSA.importKey(public_key)
