@@ -79,32 +79,69 @@
         </form>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
     <script>
         const socket = io.connect('localhost:81');
         const username = '{{ name }}';
         const room = 'chat_room';
         const encrypted_secret_key = '{{ encrypted_secret_key }}';
-        const publica = '{{ public_key }}'
+        const publica = '{{ public_key }}';
+        const secreto = "HolaSoyZuriel";
 
+        function descifraAES(mensaje_cifrado, secreto) {
+            //Dividimos la cadena con base en el espacio para poder descifrar sólo el mensaje cifrado
+            //y no el nombre del usuario.
+            var nombre_mensaje = mensaje_cifrado.split(" "); //Este es un arreglo ahora. La primera posición es el nombre
+                                                            //La segunda es la cadena a descifrar
+            if(nombre_mensaje[1]=="se"){
+                return mensaje_cifrado; //Este es un caso especial para evitar "descifrar" el mensaje inicial
+            }
+            try {
+                // Desciframos
+                var decryptedData = CryptoJS.AES.decrypt(nombre_mensaje[1], secreto);
+                var decryptedMessage = decryptedData.toString(CryptoJS.enc.Utf8);
+
+                // Si la cadena está vacía, hubo un error
+                if (!decryptedMessage) {
+                    console.error("Decryption failed or resulted in empty content.");
+                    return "Error: Could not decrypt message.";
+                }
+
+                return nombre_mensaje[0]+" "+decryptedMessage; //Devolvemos el nombre, el espacio y el mensaje descifrado
+            } catch (error) {
+                console.error("Decryption error:", error);
+                return "Error in decryption.";
+            }
+        }
+
+        //Función para cifrar con AES
+        function cifraAES(mensaje, secreto) {
+            const ciphertext = CryptoJS.AES.encrypt(mensaje, secreto).toString();
+            return ciphertext;
+        }
 
         function handleSocket() {
             socket.emit('join', { username, room });
         }
         socket.on('connect', handleSocket);
 
-        function handleMessages(data) {
+        function handleMessages(data) { //Función para desplegar los mensajes descifrados
             const msgContainer = document.createElement('div');
-            msgContainer.textContent = data;
+            mensaje = descifraAES(data,secreto);
+            msgContainer.textContent = mensaje; //data;
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
         }
-        socket.on('message', handleMessages)
+        socket.on('message', handleMessages);
 
         const form = document.querySelector('form');
-        function handleForm(event) {
+        async function handleForm(event) { //Función para envía mensaje cifrado
             event.preventDefault();
-            const message = event.target.elements.mensaje.value;
+            const aux = event.target.elements.mensaje.value;
+            message = await cifraAES(aux,secreto);
+
+            //message = await descifraAES(message,secreto);
             socket.emit('message', { username, message, room });
             event.target.elements.mensaje.value = '';
         }
