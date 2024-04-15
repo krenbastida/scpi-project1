@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for
-from flask_socketio import SocketIO, join_room, leave_room, send
+from flask_socketio import SocketIO, join_room, leave_room, send, emit
 from Cryptodome.PublicKey import RSA
 from Cryptodome.Cipher import PKCS1_OAEP
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -29,27 +29,29 @@ def login():
     if request.method == "POST": #Si POST toma el nombre del usuario y mándalo a la página del chat
         username = request.form['username']
         usuarios[username] = {}
-        publica = generate_keys_RSA(username) ################################### AQUI!!!!! AQUI MERO SE GENERAN LAS LLAVES PUB Y PRIV (se guardan)
+        publica, privada = generate_keys_RSA(username) ################################### AQUI!!!!! AQUI MERO SE GENERAN LAS LLAVES PUB Y PRIV (se guardan)
         password = request.form['password']
         global cont
         cont = cont + 1
+        print(cont)
         if(cont==2): #Ya que están los dos, se genera el secreto
             secreto = generate_key_PBKDF(str(password),urandom(16))  ############AQUI!!!!! AQUI MERO SE GENERA EL SECRETO (LA SIMETRICA)
             cipher = PKCS1_OAEP.new(publica) #################### AQUI!!!! AQUI MERO SE CIFRA LA SIMETRICA CON LA ASIMETRICA
             secreto = cipher.encrypt(str(secreto).encode())
-
             #Con esta declaracion de diccionarios de cada usuario, nos aseguramos que los 2 tienen el secreto para cifrar mensajes, se actualiza
             #el valor del secreto usando el password del último usuario en ingresar.
             usuarios[username] = {
                 "secreto": secreto,
-                "publica": publica.export_key()
+                "publica": publica.export_key(),
+                "privada": privada 
             }
         #     #binascii.hexlify(encrypted_message).decode()
         else:
             print("NO")
             usuarios[username] = {
                 "secreto": None,
-                "publica": publica.export_key()
+                "publica": publica.export_key(),
+                "privada": privada
             }
         return redirect(url_for('chat', name=username))
     return render_template('login.html') #Si GET mándale la plantilla login
@@ -64,7 +66,7 @@ def generate_keys_RSA(username):
         pu_file.write(public_key)
     with open("private_"+username+".pem", "wb") as pr_file:
         pr_file.write(private_key)
-    return key.publickey()
+    return key.publickey(),private_key
 
 @app.route('/chat/<name>', methods=["GET", "POST"])
 #Esta función renderiza la pantalla del chat.
@@ -79,20 +81,36 @@ def on_join(data):
     username = data['username']
     if(username=="Alice" or username=="Bob"):
         room = data['room']
-        join_room(room)
         users[username] = room
+        join_room(room)
         send(f"{username} se unió al chat", to=room)
-        if(usuarios[username]["secreto"] != None):
-            print("Soy "+username+" y compartire mi secreto con el otro ahora :)")
-            send({usuarios[username]["secreto"]}, to=username)
-            for clave in usuarios.keys(): #Se recorre el diccionario hasta encontrar a los usuarios que no tienen el secreto :0
-                if(clave!=username):
-                    usuarios[clave]["secreto"] = usuarios[username]["secreto"]
-                    print("Soy "+clave+" y ya tengo el secreto :D")
-                    print(usuarios[clave]["secreto"])
-    else:
-        send(f"{username} intentó unirse")
+        #El servidor envía llaves al cliente correspondiente para que las almacene
+        #El cliente entiende este envío con el mensaje "keys"
+        emit('keys',usuarios[username]) 
 
+#Cuando recibe la respuesta de recibido de llaves, se procede a compartir el secreto...
+@socketio.on('OK')
+def on_OK():
+    print("\n OK")
+    for clave in usuarios.keys(): #Se recorre el diccionario hasta encontrar al usuario que tiene el secreto
+        if(usuarios[clave]["secreto"] != None):
+            print(usuarios[clave]["secreto"])
+            emit('secret',usuarios[clave]["secreto"])#Se emite en caso de encontrarse
+
+@socketio.on('gime_public')
+def on_gime_public(data): #Recibe el usuario que pide la publica
+    for clave in usuarios.keys(): #Se recorre el diccionario hasta encontrar al usuario del que se necesita la publica
+        if(clave != data): #El que no es igual al que pide
+            pk = str(usuarios[clave]["publica"])
+            print("Soy "+clave+" y te daré mi pública: ")
+            print(pk)
+            emit('here_you_have', pk) #Se emite en caso de encontrarse
+
+@socketio.on('share_secret')
+def on_share_secret(data): #Recibe el secreto cifrado
+    print("\n Recibi el secreto cifrado, ahora lo enviaré a todos!!!")
+    print(data)
+    emit('shared',data)#Se comparte el secreto cifrado con todos (solo podrá verlo el que compartió su pública)
 
 @socketio.on('leave')
 def on_leave(data):
@@ -115,7 +133,7 @@ def on_message(data):
     username = data['username']
     room = users[username]
     message = data['message']
-    send(f"{username}: {message}", to=room)
+    send(f"{username}: {message}", to=room) #usuarios[username] envía los datos del usuario
 
 def generate_key_PBKDF(password: str, salt: bytes, iterations: int = 100000, key_length: int = 32) -> bytes:
     """Genera una llave a partir de una contraseña usando PBKDF2."""
