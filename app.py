@@ -43,7 +43,7 @@ def login():
             usuarios[username] = {
                 "secreto": secreto,
                 "publica": publica.export_key(),
-                "privada": privada 
+                "privada": privada
             }
         #     #binascii.hexlify(encrypted_message).decode()
         else:
@@ -59,7 +59,7 @@ def login():
 #Llaves para enviar secreto
 def generate_keys_RSA(username):
     key = RSA.generate(2048)  # Genera una clave RSA de 2048 bits
-    private_key = key.export_key()
+    private_key = key.export_key(pkcs=8)
     public_key = key.publickey().export_key()
     # Guardar la clave pública
     with open("public_"+username+".pem", "wb") as pu_file:
@@ -86,7 +86,16 @@ def on_join(data):
         send(f"{username} se unió al chat", to=room)
         #El servidor envía llaves al cliente correspondiente para que las almacene
         #El cliente entiende este envío con el mensaje "keys"
-        emit('keys',usuarios[username]) 
+        publica = str(usuarios[username]["publica"])
+        privada = str(usuarios[username]["privada"])
+        publica = publica.replace('\\n','')
+        privada = privada.replace('\\n','')
+        print(privada)
+        d = {
+                "publica": publica,
+                "privada": privada
+            }
+        emit('keys', d) 
 
 #Cuando recibe la respuesta de recibido de llaves, se procede a compartir el secreto...
 @socketio.on('OK')
@@ -103,6 +112,8 @@ def on_gime_public(data): #Recibe el usuario que pide la publica
         if(clave != data): #El que no es igual al que pide
             pk = str(usuarios[clave]["publica"])
             print("Soy "+clave+" y te daré mi pública: ")
+            ##Procesamos la llave para que no tenga problemas de formato
+            pk = pk.replace('\\n','') #Se quitan los saltos de línea
             print(pk)
             emit('here_you_have', pk) #Se emite en caso de encontrarse
 
