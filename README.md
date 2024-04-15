@@ -1,9 +1,13 @@
-# Proyecto 1
+# Proyecto 1 - SCPI
 
-En este proyecto se hará un servicio de mensajería instantánea entre dos entidades, en donde se tendrán mensajes cifrados para garantizar la privacidad de los mensajes, así como autenticación mediante firma digital para asegurar el origen del mensaje.
+En este proyecto se hará un servicio de mensajería instantánea entre dos clientes, en donde se tendrán mensajes cifrados para garantizar la privacidad de los mensajes, se generan llaves asimétricas con el algoritmo RSA para hacer el envio de una llave simétrica al otro cliente, con el propósito de que el intercambio de mensajes esté cifrado con el agoritmo simétrico AES.
 
-Referencias:
+Los puntos de mejora para el proyecto son: firma digital para asegurar autenticación y no repudio de quien envia los mensajes, uso de SHA-256 para asegurar la integridad de los mensajes que se envían.
 
-https://medium.com/@albertnwachukwu/how-to-create-a-simple-flask-application-9be43f9aadcd
-https://stackoverflow.com/questions/72140689/python-virtualenv-not-activated-on-windows-11
-https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-executionpolicy?view=powershell-7.4
+Integrantes:
+
+- Bastida Vargas Karen Mariel
+- Hernández Olvera Humberto Ignacio
+- Mondragón Hernández Andrea Quetzalli
+- Rodriguez Rezago Guadalupe Itzel
+- Zarate García Zuriel
