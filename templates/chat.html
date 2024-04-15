@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('https://images.pexels.com/photos/1111370/pexels-photo-1111370.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .msg-container {
+        display: flex;
+        flex-direction: column;
+        background-color: #fff;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        width: 700px;
+        height: 500px;
+        }        
+
+        .form-input {
+            margin-bottom: 10px;
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            flex: 1;
+        }
+
+        .send-button {
+            width: 15%;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #e91e63;
+            color: white;
+            cursor: pointer;
+            flex-shrink: 0; 
+            margin-left: 10px;
+        }
+
+        .logout-button {
+            width: 15%;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #e91e63;
+            color: white;
+            cursor: pointer;
+            flex-shrink: 0; 
+            margin-left: 10px;
+        }
+
+        .message-bar {
+            background-color: #e91e622d;
+            color: rgb(0, 0, 0);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            max-width: 70%;
+        }
+
+        #chat-messages {
+            background-color: yellowgreen;
+            overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es demasiado alto */
+            flex: 1; /* Hace que la zona de mensajes ocupe todo el espacio disponible */
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="msg-container">
+        <h3>{{ name }}</h3>
+        <div id="chat-messages"></div>
+        <form action="" method="post">
+            <div>
+                <input type="text" name="mensaje" placeholder="Escribe algo" class="form-input" required>
+                <button type="submit" class="send-button">ENVIAR</button>
+                <button type="submit" id="logout-button">SALIR</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+    <script>
+        const socket = io.connect('localhost:81');
+        const username = '{{ name }}';
+        const room = 'chat_room';
+        const encrypted_secret_key = '{{ encrypted_secret_key }}';
+        const publica = '{{ public_key }}';
+        const secreto = '{{ secret }}';
+        //Extrae la llave de en un arreglo de bytes.
+        async function importPrivateKey(pem) {
+            const keyData = pemToArrayBuffer(pem);
+            const key = await window.crypto.subtle.importKey(
+                'pkcs8',
+                keyData,
+                {   
+                    name: "RSA-OAEP",
+                    hash: "SHA-256"
+                },
+                true,
+                ["decrypt"]
+            );
+            return key;
+        }
+        //Extrae la llave publica del arreglo.
+        async function importPublicKey(pem) {
+            // fetch the part of the PEM string between header and footer
+            const pemHeader = "-----BEGIN PUBLIC KEY-----";
+            const pemFooter = "-----END PUBLIC KEY-----";
+            const pemContents = pem.slice(28,-26);
+            window.alert(pemContents);
+            // base64 decode the string to get the binary data
+            const binaryDerString = window.atob(pemContents);
+            // convert from a binary string to an ArrayBuffer
+            const binaryDer = str2ab(binaryDerString);
+            
+
+            return window.crypto.subtle.importKey(
+                "spki",
+                binaryDer,
+                {
+                name: "RSA-OAEP",
+                hash: "SHA-256",
+                },
+                true,
+                ["encrypt"],
+            );
+        }
+        
+        async function encryptMessage(publicKeyPem, message) {
+            const publicKey = await importPublicKey(publicKeyPem);
+            const encoder = new TextEncoder();
+            const encodedMessage = encoder.encode(message);
+            const encryptedData = await window.crypto.subtle.encrypt(
+                { name: "RSA-OAEP" },
+                publicKey,
+                encodedMessage
+            );
+            return window.btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
+        }
+        async function decryptMessage(privateKeyPem, ciphertext) {
+            const privateKey = await importPrivateKey(privateKeyPem);
+            const decodedData = window.atob(ciphertext);
+            const encryptedArrayBuffer = new Uint8Array(decodedData.length);
+            for (let i = 0; i < decodedData.length; i++) {
+                encryptedArrayBuffer[i] = decodedData.charCodeAt(i);
+            }
+            const decryptedData = await window.crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                privateKey,
+                encryptedArrayBuffer
+            );
+            const decoder = new TextDecoder();
+            return decoder.decode(decryptedData);
+        }
+
+
+        function descifraAES(mensaje_cifrado, secreto) {
+            //Dividimos la cadena con base en el espacio para poder descifrar sólo el mensaje cifrado
+            //y no el nombre del usuario.
+            var nombre_mensaje = mensaje_cifrado.split(" "); //Este es un arreglo ahora. La primera posición es el nombre
+                                                            //La segunda es la cadena a descifrar
+            if(nombre_mensaje[1]=="se"){
+                return mensaje_cifrado; //Este es un caso especial para evitar "descifrar" el mensaje inicial
+            }
+            try {
+                // Desciframos
+                var decryptedData = CryptoJS.AES.decrypt(nombre_mensaje[1], secreto);
+                var decryptedMessage = decryptedData.toString(CryptoJS.enc.Utf8);
+
+                // Si la cadena está vacía, hubo un error
+                if (!decryptedMessage) {
+                    console.error("Decryption failed or resulted in empty content.");
+                    return "Error: Could not decrypt message.";
+                }
+
+                return nombre_mensaje[0]+" "+decryptedMessage; //Devolvemos el nombre, el espacio y el mensaje descifrado
+            } catch (error) {
+                console.error("Decryption error:", error);
+                return "Error in decryption.";
+            }
+        }
+
+        //Función para cifrar con AES
+        function cifraAES(mensaje, secreto) {
+            const ciphertext = CryptoJS.AES.encrypt(mensaje, secreto).toString();
+            return ciphertext;
+        }
+
+        function handleSocket() {
+            socket.emit('join', { username, room });
+        }
+        socket.on('connect', handleSocket);
+
+
+
+        public_key = ""; 
+        private_key = "";
+        function recibe_llaves(data) { //Recibe un diccionario con ambas llaves del usuario y username
+            public_key = data['publica'];
+            private_key = data['privada'];
+            socket.emit('OK'); //Se envía mensaje de recibido
+        }
+        socket.on('keys', recibe_llaves);
+
+        secret = ""; 
+        function recibe_secreto(data) { //Recibe el secreto como una cadena
+            secret = data;
+            socket.emit('gime_public', username); //Ya que uno tiene el secreto, pide llave pública
+        }
+        socket.on('secret', recibe_secreto);
+
+        async function recibe_pk_secreto(data) { //Recibe llave publica como una cadena
+            data = data.slice(2,-1);
+            sec_a_enviar = await encryptMessage(data, secret); //Cifra el secreto que se obtuvo antes
+            print("SI")
+            socket.emit('share_secret', sec_a_enviar); //Se envía el secreto cifrado con la pública
+        }
+        socket.on('here_you_have', recibe_pk_secreto);
+
+        async function recibe_secreto_cifrado(data) { //Recibe llave publica como una cadena
+            secret = await decryptMessage(private_key, data); //descifra el secreto con la privada
+        }
+        socket.on('shared', recibe_secreto_cifrado);
+
+
+        function handleMessages(data) { //Función para desplegar los mensajes descifrados
+            const msgContainer = document.createElement('div');
+            mensaje = descifraAES(data,secreto);
+            msgContainer.textContent = mensaje; //data;
+            msgContainer.classList.add('message-bar');
+            document.getElementById('chat-messages').appendChild(msgContainer);
+        }
+        socket.on('message', handleMessages);
+
+        const form = document.querySelector('form');
+        async function handleForm(event) { //Función para envía mensaje cifrado
+            event.preventDefault();
+            const aux = event.target.elements.mensaje.value;
+            message = await cifraAES(aux,secreto);
+            socket.emit('message', { username, message, room });
+            event.target.elements.mensaje.value = '';
+        }
+        form.addEventListener('submit', handleForm);
+
+        const logoutButton = document.getElementById('logout-button');
+        logoutButton.classList.add('logout-button');
+        function handleLogOut() {
+            socket.emit('leave', { username, room });
+            window.location.href = '/login';
+        }
+        logoutButton.addEventListener('click', handleLogOut);
+    </script>
+</body>
+
+</html>
