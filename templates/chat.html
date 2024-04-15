@@ -71,7 +71,7 @@
         }
 
         #chat-messages {
-            background-color: yellowgreen;
+            background-color: white;
             overflow-y: auto; /* Habilita el desplazamiento vertical si el contenido es demasiado alto */
             flex: 1; /* Hace que la zona de mensajes ocupe todo el espacio disponible */
         }
@@ -98,12 +98,48 @@
         const socket = io.connect('localhost:81');
         const username = '{{ name }}';
         const room = 'chat_room';
-        const encrypted_secret_key = '{{ encrypted_secret_key }}';
-        const publica = '{{ public_key }}';
-        const secreto = '{{ secret }}';
+        secreto = "HolaSoyZuriel";
+
+        function pemToArrayBuffer(pem) {
+            const b64Lines = pem.slice(26,-24);
+            const binaryString = window.atob(b64Lines);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pemToArrayBufferP(pem) {
+            const b64Lines = pem.slice(29,-26);
+            const binaryString = window.atob(b64Lines);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+        
+        //Extrae la llave publica del arreglo.
+        async function importPublicKey(pem) {
+            const keyData = pemToArrayBuffer(pem);
+            const key = await window.crypto.subtle.importKey(
+                'spki',
+                keyData,
+                {
+                    name: "RSA-OAEP",
+                    hash: "SHA-256"
+                },
+                true,
+                ["encrypt"]
+            );
+            console.log("public_key: "+key);
+            return key;
+        }
+        
         //Extrae la llave de en un arreglo de bytes.
         async function importPrivateKey(pem) {
-            const keyData = pemToArrayBuffer(pem);
+            const keyData = pemToArrayBufferP(pem);
             const key = await window.crypto.subtle.importKey(
                 'pkcs8',
                 keyData,
@@ -114,33 +150,10 @@
                 true,
                 ["decrypt"]
             );
+            console.log("private_key: "+key);
             return key;
         }
-        //Extrae la llave publica del arreglo.
-        async function importPublicKey(pem) {
-            // fetch the part of the PEM string between header and footer
-            const pemHeader = "-----BEGIN PUBLIC KEY-----";
-            const pemFooter = "-----END PUBLIC KEY-----";
-            const pemContents = pem.slice(28,-26);
-            window.alert(pemContents);
-            // base64 decode the string to get the binary data
-            const binaryDerString = window.atob(pemContents);
-            // convert from a binary string to an ArrayBuffer
-            const binaryDer = str2ab(binaryDerString);
-            
 
-            return window.crypto.subtle.importKey(
-                "spki",
-                binaryDer,
-                {
-                name: "RSA-OAEP",
-                hash: "SHA-256",
-                },
-                true,
-                ["encrypt"],
-            );
-        }
-        
         async function encryptMessage(publicKeyPem, message) {
             const publicKey = await importPublicKey(publicKeyPem);
             const encoder = new TextEncoder();
@@ -156,14 +169,17 @@
             const privateKey = await importPrivateKey(privateKeyPem);
             const decodedData = window.atob(ciphertext);
             const encryptedArrayBuffer = new Uint8Array(decodedData.length);
+            console.log(encryptedArrayBuffer);
             for (let i = 0; i < decodedData.length; i++) {
                 encryptedArrayBuffer[i] = decodedData.charCodeAt(i);
             }
+            console.log("Imprimiendo Private Key: "+privateKey);
             const decryptedData = await window.crypto.subtle.decrypt(
                 { name: "RSA-OAEP" },
                 privateKey,
                 encryptedArrayBuffer
             );
+            console.log("Decrypted Data: "+decryptedData);
             const decoder = new TextDecoder();
             return decoder.decode(decryptedData);
         }
@@ -227,21 +243,22 @@
         async function recibe_pk_secreto(data) { //Recibe llave publica como una cadena
             data = data.slice(2,-1);
             sec_a_enviar = await encryptMessage(data, secret); //Cifra el secreto que se obtuvo antes
-            print("SI")
             socket.emit('share_secret', sec_a_enviar); //Se envía el secreto cifrado con la pública
         }
         socket.on('here_you_have', recibe_pk_secreto);
 
         async function recibe_secreto_cifrado(data) { //Recibe llave publica como una cadena
             secret = await decryptMessage(private_key, data); //descifra el secreto con la privada
+            window.alert("Ya acabamos :)");
         }
         socket.on('shared', recibe_secreto_cifrado);
+
 
 
         function handleMessages(data) { //Función para desplegar los mensajes descifrados
             const msgContainer = document.createElement('div');
             mensaje = descifraAES(data,secreto);
-            msgContainer.textContent = mensaje; //data;
+            msgContainer.textContent = data;//mensaje;
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
         }
