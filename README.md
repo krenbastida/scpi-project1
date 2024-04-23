@@ -11,3 +11,7 @@ Integrantes:
 - Mondragón Hernández Andrea Quetzalli
 - Rodriguez Rezago Guadalupe Itzel
 - Zarate García Zuriel
+
+## Instrucciones
+
+Se descarga el script para instalación que corresponde al Sistema Operativo que se usará, así como el archivo de requerimientos.txt, app.py y la carpeta de templates. Una vez descargado se tiene que ejecutar el script para la instalación del ambiente virtual en python.
