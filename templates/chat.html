@@ -98,7 +98,6 @@
         const socket = io.connect('localhost:81');
         const username = '{{ name }}';
         const room = 'chat_room';
-        secreto = "HolaSoyZuriel";
 
         function pemToArrayBuffer(pem) {
             const b64Lines = pem.slice(26,-24);
@@ -174,18 +173,26 @@
                 encryptedArrayBuffer[i] = decodedData.charCodeAt(i);
             }
             console.log("Imprimiendo Private Key: "+privateKey);
-            const decryptedData = await window.crypto.subtle.decrypt(
-                { name: "RSA-OAEP" },
-                privateKey,
-                encryptedArrayBuffer
-            );
-            console.log("Decrypted Data: "+decryptedData);
+
+            const decryptedData = new Uint8Array();
+            try {
+                let decryptedData = await window.crypto.subtle.decrypt(
+                        { name: "RSA-OAEP" },
+                        privateKey,
+                        encryptedArrayBuffer
+                    );
+            } catch(e) {
+                console.log(e);
+            }
+
             const decoder = new TextDecoder();
-            return decoder.decode(decryptedData);
+            const secretin = decoder.decode(decryptedData);
+            console.log("HOLI:"+secretin);
+            return secretin;
         }
 
 
-        function descifraAES(mensaje_cifrado, secreto) {
+        function descifraAES(mensaje_cifrado, sec) {
             //Dividimos la cadena con base en el espacio para poder descifrar sólo el mensaje cifrado
             //y no el nombre del usuario.
             var nombre_mensaje = mensaje_cifrado.split(" "); //Este es un arreglo ahora. La primera posición es el nombre
@@ -195,7 +202,7 @@
             }
             try {
                 // Desciframos
-                var decryptedData = CryptoJS.AES.decrypt(nombre_mensaje[1], secreto);
+                var decryptedData = CryptoJS.AES.decrypt(nombre_mensaje[1], sec);
                 var decryptedMessage = decryptedData.toString(CryptoJS.enc.Utf8);
 
                 // Si la cadena está vacía, hubo un error
@@ -212,8 +219,8 @@
         }
 
         //Función para cifrar con AES
-        function cifraAES(mensaje, secreto) {
-            const ciphertext = CryptoJS.AES.encrypt(mensaje, secreto).toString();
+        function cifraAES(mensaje, sec) {
+            const ciphertext = CryptoJS.AES.encrypt(mensaje, sec).toString();
             return ciphertext;
         }
 
@@ -232,13 +239,14 @@
             socket.emit('OK'); //Se envía mensaje de recibido
         }
         socket.on('keys', recibe_llaves);
-
         secret = ""; 
-        function recibe_secreto(data) { //Recibe el secreto como una cadena
+        function recibe_secreto(data) { //Recibe el secreto por parte del servidor
             secret = data;
             socket.emit('gime_public', username); //Ya que uno tiene el secreto, pide llave pública
         }
         socket.on('secret', recibe_secreto);
+
+
 
         async function recibe_pk_secreto(data) { //Recibe llave publica como una cadena
             data = data.slice(2,-1);
@@ -247,9 +255,11 @@
         }
         socket.on('here_you_have', recibe_pk_secreto);
 
+
+
         async function recibe_secreto_cifrado(data) { //Recibe llave publica como una cadena
             secret = await decryptMessage(private_key, data); //descifra el secreto con la privada
-            window.alert("Ya acabamos :)");
+            //window.alert("Ya acabamos :)");
         }
         socket.on('shared', recibe_secreto_cifrado);
 
@@ -257,7 +267,7 @@
 
         function handleMessages(data) { //Función para desplegar los mensajes descifrados
             const msgContainer = document.createElement('div');
-            mensaje = descifraAES(data,secreto);
+            mensaje = descifraAES(data,secret);
             msgContainer.textContent = data;//mensaje;
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
@@ -268,7 +278,7 @@
         async function handleForm(event) { //Función para envía mensaje cifrado
             event.preventDefault();
             const aux = event.target.elements.mensaje.value;
-            message = await cifraAES(aux,secreto);
+            message = await cifraAES(aux,secret);
             socket.emit('message', { username, message, room });
             event.target.elements.mensaje.value = '';
         }
