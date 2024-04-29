@@ -104,7 +104,7 @@ def on_OK():
     for clave in usuarios.keys(): #Se recorre el diccionario hasta encontrar al usuario que tiene el secreto
         if(usuarios[clave]["secreto"] != None):
             print(usuarios[clave]["secreto"])
-            emit('secret',usuarios[clave]["secreto"])#Se emite en caso de encontrarse
+            emit('secret',usuarios[clave]["secreto"]) #Se emite en caso de encontrarse
 
 @socketio.on('gime_public')
 def on_gime_public(data): #Recibe el usuario que pide la publica
