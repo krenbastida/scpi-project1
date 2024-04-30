@@ -308,19 +308,28 @@
             return isValid;
         }
 
+
+        comunicacion_valida = true;
         async function procesaInfo(data) { //Función para procesar los datos recibidos para verificar la firma
             message = data['message'];
             firmado = data['firmado'];
             pub_key = data['public_key'];
-            valida = await verificaFirma(pub_key, firmado, message);
+            //message = message+"intruso";
+            comunicacion_valida = await verificaFirma(pub_key, firmado, message);
             console.log("Mensaje cifrado recibido: "+message);
-            console.log("Es valida la firma?: "+valida);
+            console.log("Es valida la firma?: "+comunicacion_valida);
         }
         socket.on('recibe_datos', procesaInfo);
 
         function handleMessages(data) { //Función para desplegar los mensajes descifrados
             const msgContainer = document.createElement('div');
-            mensaje = descifraAES(data, secret);
+            if(comunicacion_valida){
+                mensaje = descifraAES(data, secret);
+            }
+            else{
+                mensaje = "COMUNICACION INTERVENIDA!!! Terminando comunicacion...";
+                socket.emit('leave', { username, room });
+            }
             msgContainer.textContent = mensaje;
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
