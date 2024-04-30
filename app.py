@@ -90,7 +90,7 @@ def on_join(data):
         privada = str(usuarios[username]["privada"])
         publica = publica.replace('\\n','')
         privada = privada.replace('\\n','')
-        print(privada)
+        print(username+" se unió al chat")
         d = {
                 "publica": publica,
                 "privada": privada
@@ -139,12 +139,14 @@ def on_leave(data):
 #     publica = usuarios[username]["publica"]
 #     send(f"{username}: {message}  {publica}", to=room)
 
+
 @socketio.on('message')
 def on_message(data):
     username = data['username']
     room = users[username]
     message = data['message']
     send(f"{username}: {message}", to=room) #usuarios[username] envía los datos del usuario
+    emit('recibe_datos', data)
 
 def generate_key_PBKDF(password: str, salt: bytes, iterations: int = 100000, key_length: int = 32) -> bytes:
     """Genera una llave a partir de una contraseña usando PBKDF2."""

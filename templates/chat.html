@@ -100,7 +100,8 @@
         const room = 'chat_room';
 
         function pemToArrayBuffer(pem) {
-            const b64Lines = pem.slice(26,-24);
+            const b64Lines = pem.slice(28,-25);
+            //console.log(b64Lines);
             const binaryString = window.atob(b64Lines);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
@@ -111,6 +112,7 @@
 
         function pemToArrayBufferP(pem) {
             const b64Lines = pem.slice(29,-26);
+            //console.log(b64Lines);
             const binaryString = window.atob(b64Lines);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
@@ -120,19 +122,19 @@
         }
         
         //Extrae la llave publica del arreglo.
-        async function importPublicKey(pem) {
+        async function importPublicKey(pem, standard, option) {
             const keyData = pemToArrayBuffer(pem);
             const key = await window.crypto.subtle.importKey(
                 'spki',
                 keyData,
                 {
-                    name: "RSA-OAEP",
+                    name: standard,
                     hash: "SHA-256"
                 },
                 true,
-                ["encrypt"]
+                [option]
             );
-            console.log("public_key: "+key);
+            //console.log("public_key: "+key);
             return key;
         }
         
@@ -149,12 +151,28 @@
                 true,
                 ["decrypt"]
             );
-            console.log("private_key: "+key);
+            //console.log("private_key: "+key);
+            return key;
+        }
+
+        async function importPrivateKeyPSS(pem) {
+            const keyData = pemToArrayBufferP(pem);
+            const key = await window.crypto.subtle.importKey(
+                'pkcs8',
+                keyData,
+                {   
+                    name: "RSA-PSS",
+                    hash: "SHA-256"
+                },
+                true,
+                ["sign"]
+            );
+            //console.log("private_key: "+key);
             return key;
         }
 
         async function encryptMessage(publicKeyPem, message) {
-            const publicKey = await importPublicKey(publicKeyPem);
+            const publicKey = await importPublicKey(publicKeyPem,"RSA-OAEP","encrypt");
             const encoder = new TextEncoder();
             const encodedMessage = encoder.encode(message);
             const encryptedData = await window.crypto.subtle.encrypt(
@@ -168,11 +186,9 @@
             const privateKey = await importPrivateKey(privateKeyPem);
             const decodedData = window.atob(ciphertext);
             const encryptedArrayBuffer = new Uint8Array(decodedData.length);
-            console.log(encryptedArrayBuffer);
             for (let i = 0; i < decodedData.length; i++) {
                 encryptedArrayBuffer[i] = decodedData.charCodeAt(i);
             }
-            console.log("Imprimiendo Private Key: "+privateKey);
 
             const decryptedData = new Uint8Array();
             try {
@@ -187,7 +203,6 @@
 
             const decoder = new TextDecoder();
             const secretin = decoder.decode(decryptedData);
-            console.log("HOLI:"+secretin);
             return secretin;
         }
 
@@ -230,7 +245,6 @@
         socket.on('connect', handleSocket);
 
 
-
         public_key = ""; 
         private_key = "";
         function recibe_llaves(data) { //Recibe un diccionario con ambas llaves del usuario y username
@@ -247,14 +261,11 @@
         socket.on('secret', recibe_secreto);
 
 
-
         async function recibe_pk_secreto(data) { //Recibe llave publica como una cadena
-            data = data.slice(2,-1);
             sec_a_enviar = await encryptMessage(data, secret); //Cifra el secreto que se obtuvo antes
             socket.emit('share_secret', sec_a_enviar); //Se envía el secreto cifrado con la pública
         }
         socket.on('here_you_have', recibe_pk_secreto);
-
 
 
         async function recibe_secreto_cifrado(data) { //Recibe llave publica como una cadena
@@ -264,11 +275,53 @@
         socket.on('shared', recibe_secreto_cifrado);
 
 
+        async function firma(privateKeyPem, message){
+            const privateKey = await importPrivateKeyPSS(privateKeyPem);
+            const encoder = new TextEncoder();
+            const encodedMessage = encoder.encode(message);
+            const signature = await window.crypto.subtle.sign( //Aquí hashea el mensaje con SHA-256
+                { name: "RSA-PSS", saltLength: 32 }, // Parámetros de la firma
+                privateKey,
+                encodedMessage
+            );
+            return window.btoa(String.fromCharCode(...new Uint8Array(signature)));
+        }
+
+        async function verificaFirma(publicKeyPem, signature, message){
+            const publicKey = await importPublicKey(publicKeyPem,"RSA-PSS","verify");
+            const decoder = new TextDecoder();
+            const decodedSignature = window.atob(signature);
+            const signatureBuffer = new Uint8Array(decodedSignature.length);
+            for (let i = 0; i < decodedSignature.length; i++) {
+                signatureBuffer[i] = decodedSignature.charCodeAt(i);
+            }
+            const encodedMessage = new TextEncoder().encode(message);
+            const isValid = await window.crypto.subtle.verify( //La función ya aplica el Hash con SHA-256 y lo compara
+                { 
+                    name: "RSA-PSS", 
+                    saltLength: 32,
+                }, // Parámetros de la firma
+                publicKey,
+                signatureBuffer,
+                encodedMessage,
+            );
+            return isValid;
+        }
+
+        async function procesaInfo(data) { //Función para procesar los datos recibidos para verificar la firma
+            message = data['message'];
+            firmado = data['firmado'];
+            pub_key = data['public_key'];
+            valida = await verificaFirma(pub_key, firmado, message);
+            console.log("Mensaje cifrado recibido: "+message);
+            console.log("Es valida la firma?: "+valida);
+        }
+        socket.on('recibe_datos', procesaInfo);
 
         function handleMessages(data) { //Función para desplegar los mensajes descifrados
             const msgContainer = document.createElement('div');
-            mensaje = descifraAES(data,secret);
-            msgContainer.textContent = data;//mensaje;
+            mensaje = descifraAES(data, secret);
+            msgContainer.textContent = mensaje;
             msgContainer.classList.add('message-bar');
             document.getElementById('chat-messages').appendChild(msgContainer);
         }
@@ -278,11 +331,14 @@
         async function handleForm(event) { //Función para envía mensaje cifrado
             event.preventDefault();
             const aux = event.target.elements.mensaje.value;
-            message = await cifraAES(aux,secret);
-            socket.emit('message', { username, message, room });
+            message = await cifraAES(aux,secret); //1. Mensaje cifrado con AES
+            firmado = await firma(private_key, message); //2. Mensaje Firmado
+            socket.emit('message', { username, message, room, firmado, public_key }); //3. Llave pública
             event.target.elements.mensaje.value = '';
         }
         form.addEventListener('submit', handleForm);
+
+
 
         const logoutButton = document.getElementById('logout-button');
         logoutButton.classList.add('logout-button');
